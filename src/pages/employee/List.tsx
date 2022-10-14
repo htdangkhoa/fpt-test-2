@@ -1,40 +1,22 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FetchResponse } from "deta/dist/types/types/base/response";
-import { Button, Space, Table, TableColumnsType, Modal, message } from "antd";
+import React, { useCallback, useEffect, useMemo } from "react";
+import { useDispatch, useSelector } from 'react-redux'
+import { Button, Space, Table, TableColumnsType, Modal } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
-import useDetaBase from "../../hooks/useDeta";
 import { Employee } from "../../interfaces/Employee";
 import { routes } from "../../constants";
+import { deleteEmployee, getEmployees } from "../../api";
+import { AppDispatch, AppState } from "../../store";
 
 const List = () => {
   const navigate = useNavigate();
 
-  const detaBase = useDetaBase("employees");
-
-  const [loading, setLoading] = useState(false);
-
-  const [data, setData] = useState<FetchResponse>({
-    items: [],
-    last: undefined,
-    count: 0,
-  });
-
-  const fetchEmployees = useCallback(() => {
-    setLoading(true);
-
-    detaBase
-      .fetch()
-      .then(setData)
-      .catch(console.error)
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+  const dispatch = useDispatch<AppDispatch>();
+  const { employees, loading } = useSelector((state: AppState) => state.employee)
 
   useEffect(() => {
-    fetchEmployees();
+    dispatch(getEmployees());
   }, []);
 
   const onAdd = () => navigate(routes.EMPLOYEE_ADD);
@@ -48,11 +30,7 @@ const List = () => {
   const onDelete = useCallback((id: string) => {
     Modal.confirm({
       title: `Are you sure delete Employee #${id}?`,
-      onOk: () =>
-        detaBase
-          .delete(id)
-          .then(fetchEmployees)
-          .catch((err) => message.error(err.message)),
+      onOk: () => dispatch(deleteEmployee(id))
     });
   }, []);
 
@@ -107,7 +85,7 @@ const List = () => {
         Add
       </Button>
 
-      <Table loading={loading} columns={columns} dataSource={data.items as unknown as Employee[]} />
+      <Table loading={loading} columns={columns} dataSource={employees} />
     </div>
   );
 };

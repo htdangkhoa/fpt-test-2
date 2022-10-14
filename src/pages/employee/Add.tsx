@@ -1,23 +1,23 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Form, Input, Radio, Button, message } from "antd";
-import { GetResponse } from "deta/dist/types/types/base/response";
 
-import useDetaBase from "../../hooks/useDeta";
-import { Employee } from "../../interfaces/Employee";
 import usePrompt from "../../hooks/usePrompt";
 import { routes } from "../../constants";
+import { AppDispatch, AppState } from "../../store";
+import { createOrUpdateEmployee } from "../../api";
 
 const Add = () => {
+  const dispatch = useDispatch<AppDispatch>();
+
+  const { employees, loading } = useSelector((state: AppState) => state.employee);
+
   const { state } = useLocation();
 
   const navigate = useNavigate();
 
   const [form] = Form.useForm();
-
-  const detaBase = useDetaBase("employees");
-
-  const [loading, setLoading] = useState(false);
 
   const [changed, setChanged] = useState(false);
 
@@ -25,40 +25,26 @@ const Add = () => {
 
   useEffect(() => {
     if (state?.id) {
-      detaBase
-        .get(state?.id)
-        .then((result: GetResponse) => {
-          form.setFieldsValue(result as any as Employee);
-        })
-        .catch((err) => message.error(err.message));
+      const employee = employees.find((employee) => employee.key === state?.id)
+
+      if (employee) {
+        form.setFieldsValue(employee);
+      }
     }
   }, [state?.id]);
 
   const onFinish = useCallback(
     (values: any) => {
-      setLoading(true);
+      setChanged(false);
 
-      if (state?.id) {
-        return detaBase
-          .update(values, state?.id)
-          .then(() => {
-            message.success("Employee updated successfully.");
+      dispatch(createOrUpdateEmployee({ ...values, key: state?.id })).then(() => {
 
-            navigate(routes.EMPLOYEE_LIST);
-          })
-          .catch((err) => message.error(err.message))
-          .finally(() => setLoading(false));
-      }
+        const messageText = state?.id ? "Employee updated" : "Employee created";
 
-      detaBase
-        .insert(values)
-        .then(() => {
-          message.success("Employee created");
+        message.success(messageText);
 
-          navigate(routes.EMPLOYEE_LIST);
-        })
-        .catch((err) => message.error(err.message))
-        .finally(() => setLoading(false));
+        navigate(routes.EMPLOYEE_LIST);
+      });
     },
     [state?.id],
   );
